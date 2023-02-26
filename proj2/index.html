@@ -1,7 +1,296 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+	<style>
+		/* narrow window or mobile */
+		body {
+			margin: 20px;
+			font-family: 'Verdana', sans-serif;
+			color: #121212;
+		}
+
+		/* wide window */
+		@media only screen and (min-width: 1000px) {
+			body {
+				width: calc(min(1000px, 80vw));
+				margin: 40px auto;
+			}
+		}
+
+		h1,
+		h2,
+		figcaption {
+			text-align: center;
+		}
+
+		.two-column-table {
+			width: 100%;
+		}
+
+		.two-column-table td {
+			padding: 3vw;
+		}
+
+		h2 {
+			margin-top: 50px;
+		}
+
+		.normal-image {
+			display: block;
+			width: calc(min(80%, 600px));
+			margin: 0 auto;
+		}
+
+		.right-image {
+			width: calc(min(40vw, 400px));
+		}
+
+		.big-image,
+		.two-column-table img {
+			width: 100%;
+		}
+
+	</style>
+	<title>CS 184 Rasterizer</title>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+
+<body>
+	<h1>CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+	<h1>Project 2: MeshEdit</h1>
+	<h2>Gabriel Mitnick and William Fei, CS184</h2>
+	<!-- <div>
+		<img src="images/duckhotdog.png" class="normal-image" />
+	</div>
+	<br><br>
+
+	<h2>Overview</h2>
+	<p>In this project, we implemented a program that renders scalable vector graphics files. We begin with the basics: drawing triangles on a screen. By applying refinement processes including antialiasing, matrix transforms, barycentric coordinate interpolation for colors, and texture mapping, we improve our capacity to render increasingly complex images.</p>
+
+	<h2>Task 1: Rasterizing single-color triangles</h2>
+
+	<p>A screen is a rectangular grid of pixels. Rasterizing a triangle means choosing which pixels should get colored and which should not in order to draw the triangle on the pixel grid.</p>
+	<p>For each pixel, we must determine whether it falls within the triangle. Consider a point <i>p</i> and a triangle with vertices <i>a</i>, <i>b</i>, and <i>c</i>. We want to test if that point is inside the triangle. Starting with edge <b>ab</b>, take the dot product of vector <b>ap</b> with a vector normal to <b>ab</b>. Repeat with edge <b>bc</b> and edge <b>ca</b>. If the signs of the dot products are all nonnegative OR all nonpositive, the point falls within the triangle or on its boundary. (Whether the dot products are nonnegative or nonpositive depends on whether the vertices are in clockwise or counterclockwise order.) Otherwise, if the signs of the dot products don’t match, the point is outside of the triangle.</p>
+	<p>A naive solution would run this test on every pixel within the screen, but one can slightly optimize this solution by only looking at pixels within a triangles’ bounding box. The bounding box is defined by x ∈ [xMin, xMax] and y ∈ [yMin, yMax] where these variables represent the smallest and largest coordinate values of the three vertices, bound to the size of the framebuffer. For example, xMax := min(max(x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>), framewidth).</p>
+	<p>This algorithm is no worse than one that checks each sample within the bounding box of the triangle simply because our algorithm is exactly the one that checks each sample within the bounding box of the rectangle.</p>
+	<div>
+		<img src="images/task1screenshot.png" class="normal-image" />
+		<p><i>Note the jaggies caused by aliasing</i></p>
+	</div>
+
+	<h2>Task 2: Antialiasing triangles</h2>
+
+	<p>Naive rasterization takes one point sample for each pixel. This creates aliasing issues, which manifest visually as artifacts like jaggies.</p>
+	<p>Supersampling is an anti-aliasing technique that lessens these artifacts. In supersampling, we take multiple samples from the square neighborhood of each pixel and average them to calculate the resulting color for each pixel.</p>
+	<p>In our implementation, the number of samples per pixel is the variable <i>sample_rate</i>. Assuming our sample points lie on a grid, we see sqrt(<i>sample_rate</i>) rows and sqrt(<i>sample_rate</i>) columns of samples for each pixel.</p>
+	<p>To perform supersampling, we must perform the triangle test described above at each sample point. Then we take the average of each sample to determine the final pixel color. For instance, if our sample_rate is 4, and for a pixel, three samples fall inside the triangle and one falls outside, the pixel will be painted with the triangle’s fill color at 75% opacity. This averaging creates intermediary colors between the triangle’s fill color and the background color. The gradual color change visually reduces the staircase edges, or jaggies, and instead gives a smoother, less aliased output. Here are the results of taking 4, 9, and 16 supersamples per pixel:</p>
+	<div>
+		<table class="two-column-table">
+			<tr>
+				<td>
+					<img src="images/task2supersample1.png" />
+					<figcaption><i>Sample Rate 1</i></figcaption>
+				</td>
+				<td>
+					<img src="images/task2supersample4.png" />
+					<figcaption><i>Sample Rate 4</i></figcaption>
+				</td>
+			</tr>
+			<br>
+			<tr>
+				<td>
+					<img src="images/task2supersample9.png" />
+					<figcaption><i>Sample Rate 9</i></figcaption>
+				</td>
+				<td>
+					<img src="images/task2supersample16.png" />
+					<figcaption><i>Sample Rate 16</i></figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	<br>
+	<p>Two notes on supersampling:</p>
+	<p>1) While supersampling reduces the impact of aliasing, it does not completely eliminate it.</p>
+	<p>2) This square neighborhood around a pixel is often itself called a pixel, but more properly, each pixel is only a single point of color. See <a href="http://alvyray.com/Memos/CG/Microsoft/6_pixel.pdf">Alvy Ray Smith’s “A Pixel Is Not A Little Square”</a></p>
+
+	<h2>Task 2 Extra Credit</h2>
+
+	<p>For extra credit, we implemented an alternative supersampling pattern called Monte Carlo supersampling.</p>
+	<p>There is an issue with supersampling along a perfect grid. If the underlying image or geometrical pattern happens to have a periodicity that lines up with the supersampling grid, the result can be aliased just as badly as if supersampling weren’t used. As an example, we made a test SVG file that shows strong aliasing under a regular grid sampling pattern with a <i>sample_rate</i> of 1 or 4. The demo SVG contains 200 thin vertical rectangular black stripes on a white background, covering the region within 100px of the left edge of the image. (When we extended the number of stripes, we got unpredictable results, probably due to the imprecise sizing of the viewing frame.) When rendered at the default size, the stripes line up with the pixel grid as follows. Each column of pixels has two stripes passing through it. For example, the column from x=0 to x=1, that neighborhood contains a first stripe from x=⅛ to ⅜ and a second from x=⅝ to ⅞. (We generated this SVG with a short Python script to generate 200 polygon tags.)</p>
+
+	<table>
+		<tr>
+			<td>
+				<p>This pattern shows a high frequency of 2 oscillations per pixel width, which is above the Nyquist frequency of ½ oscillations per pixel width, so a perfect anti-aliased rasterization would filter out that frequency and show the average color 50% gray. But when each pixel is calculated from a single sample at x=½, every sample falls between stripes and the resulting image looks all white:</p>
+			</td>
+			<td>
+				<img src="images/montecarlodemo1.png" class="right-image" />
+			</td>
+		</tr>
+		<br>
+		<tr>
+			<td>
+				<p>And when we take 4 supersamples on a grid, at (¼, ¼), (¼, ¾), (¾, ¼), (¾, ¾), the aliasing is just as bad, but now all the samples land on the stripes and the resulting image looks all black for the striped region:</p>
+			</td>
+			<td>
+				<img src="images/montecarlodemo2.png" class="right-image" />
+			</td>
+		</tr>
+	</table>
+	</div>
+	<p>In Monte Carlo supersampling, we randomly jitter the location of each sample. For example, with a <i>sample_rate</i> of 4, instead of taking the first sample from the center of the first quadrant, we take it from a random point within that quadrant. This reduces aliasing at the cost of adding noise. </p>
+	<div>
+		<table>
+			<tr>
+				<td>
+					<p>Here is the result with <i>sample_rate</i> 1. Each pixel in the striped region has a 50% chance of being white and 50% chance of being black. This image shows noise that isn’t present in the actual SVG geometry. But on the other hand, the striped region ends up with an average color of 50% gray, which is correct, so for many purposes this result is better than the grid-supersampled results with <i>sample_rate</i> 1 or 4.</p>
+				</td>
+				<td>
+					<img src="images/montecarlodemo3.png" class="right-image" />
+				</td>
+			</tr>
+			<br>
+			<tr>
+				<td>
+					<p>When we bump up <i>sample_rate</i> to 4, the result becomes a bit better. Now 1/16 pixels are black, ¼ are 25% gray, ⅜ are 50% gray, ¼ are 75% gray, and 1/16 are white. This distribution is still not perfect, and you can see the undesirable noise in the image, but this result is definitely closer to the ideal all–50% gray than any of the previous results, without requiring more samples.</p>
+				</td>
+				<td>
+					<img src="images/montecarlodemo4.png" class="right-image" />
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<h2>Task 3: Transforms</h2>
+
+	<div>
+		<img src="images/robotdab.png" class="normal-image" />
+	</div>
+	<p>We implemented matrix transforms for translation, scaling, and rotation using matrix operations with homogeneous coordinates.</p>
+	<p>Our updated cubeman is doing the dab. Implementing this required us to update the translation and rotation values. We also gave cubeman a new head color for clarity as his arm is layed on top.</p>
+	<br>
+
+	<h2>Task 4: Barycentric coordinates</h2>
+
+	<p>Barycentric coordinates represent the position of any point in a triangle with respect to its proximity to the three vertices. The three scalar values, α, β, and γ, sum to 1, and if the point is within the triangle, they are all between 0 and 1.</p>
+	<p>Barycentric coordinates can be used to interpolate between values defined at the vertices of a triangle, like color. We can determine the color of any point in a triangle by using α, β, and γ as weights in a weighted average of the colors defined for the vertices.</p>
+	<div>
+		<table>
+			<tr>
+				<td>
+					<p>For example, this triangle has vertices A, B, and C, and our point of interest has barycentric coordinates (0.6, 0.2, 0.2). Both the math and the drawing reveal that this point is closest to vertice A and equidistant from B and C. A is colored red, B is colored green, and C is colored blue, so the color at this chosen point is mostly red, with some green and blue mixed in.
+					</p>
+				</td>
+				<td>
+					<img src="images/barycentricexplanation.png" align="top" class="right-image" />
+				</td>
+			</tr>
+			<br>
+		</table>
+	</div>
+	<br>
+	<div>
+		<img src="images/task4circle.png" class="normal-image" />
+		<p><i>Smooth Color Wheel Created with Barycentric Coordinate Interpolation</i></p>
+	</div>
+
+	<h2>Task 5: "Pixel sampling" for texture mapping</h2>
+
+	<p>Pixel sampling is a process that maps the screen to texture maps. It requires the use of barycentric interpolation to map screen space (x, y) to texture space (u, v). However, this process will not automatically map each pixel in screen space to a single texel. The corresponding (u, v) point may be non-integral, lying between texels.</p>
+	<p>One solution to this disparity is using the nearest neighbor sampling method: simply round (u, v) to the nearest texel coordinate and sample the texture there. This is easy, but produces obvious aliasing. For example, if multiple screen pixels correspond to (u, v) points with the same nearest neighbor, they’ll all end up with the same color, making the result appear pixelated.</p>
+	<p>A better solution is bilinear sampling. This method takes samples of the four texels around the point, instead of just the single nearest point. Then it uses the u coordinate to lerp between the two pairs of colors, and uses the v coordinate to lerp between those two lerped values, choosing a final bilinearly-interpolated result color. Because our output cells blend four nearby pixel colors instead of taking just one, the resulting image will appear smoother:</p>
+	<div>
+		<table class="two-column-table">
+			<tr>
+				<td>
+					<img src="images/task5nearest1.png" />
+					<figcaption><i>Nearest Pixel Sampling at 1 sample per pixel</i></figcaption>
+				</td>
+				<td>
+					<img src="images/task5bilinear1.png" />
+					<figcaption><i>Bilinear Pixel Sampling at 1 sample per pixel</i></figcaption>
+				</td>
+			</tr>
+			<br>
+		</table>
+	</div>
+	<br>
+	<p>Another thing to consider is sampling rate. If the texture is “zoomed out”, that is, adjacent points in screen space correspond to points several texels away from each other in texture space, we’ll have aliasing. Even if we use bilinear interpolation, each pixel will only represent a single sample from the interpolated texture, even though there are several texel’s in the pixel’s “neighborhood”. If we take more samples from the texture for each pixel, we can alleviate this aliasing. More texels will be represented, so the output will be smoother:</p>
+	<div>
+		<table class="two-column-table">
+			<tr>
+				<td>
+					<img src="images/task5nearest16.png" />
+					<figcaption><i>Nearest Pixel Sampling at 16 samples per pixel</i></figcaption>
+				</td>
+				<td>
+					<img src="images/task5bilinear16.png" />
+					<figcaption><i>Bilinear Pixel Sampling at 16 samples per pixel</i></figcaption>
+				</td>
+			</tr>
+			<br>
+		</table>
+	</div>
+	<br>
+	<p>As these results show, the nearest sampling method is significantly less bad when paired with supersampling. The best result comes from combining these methods, using both the sampling rate of 16 and bilinear pixel samping</p>
+	<p>There will be a large difference between these two methods when dealing with a more granular, high-resolution texture. Small-scale/high-frequency texture details like thin lines or hair strands will result in sudden changes between neighboring pixels. Using higher sampling rates and the bilinear sampling method instead of the nearest neighbor method will provide the best results.</p>
+
+	<h2>Task 6: "Level sampling" with mipmaps for texture mapping</h2>
+
+	<p>Oftentimes, when attempting to texture map a scene, different parts require different amounts of detail. If far-away objects and nearby objects all use single samples from the same texture, two problems can happen. First, textures on geometry close to the camera might appear blurry if the texture is too low-resolution. Second, textures on geometry in the background could be sampling sparsely from a texture that is too high-resolution. We would either see an aliased final image, or we’d have to perform computation-heavy anti-aliasing on the spot.</p>
+	<p>One solution is to pre-compute and store various resolutions for a single image. These stack of scaled images of one texture is called a mipmap. Level zero of a mipmap represents the full resolution texture, and each successive level is downscaled with proper antialiasing to half the height and width. Now, by sampling from the appropriate level of the mipmap for each point, we can reduce aliasing without performing much extra computation.</p>
+	<p>At a high level, we use high-resolution mip levels for objects close to the camera as they require higher-density samples. On the other hand, we use low-resolution mip levels for further away objects. The size of the texture on a fragment, and thus the appropriate mip level, can also depend on other factors, like the texture coordinates defined in the model we’re rendering, or the angle at which we’re looking at a triangle.</p>
+	<br>
+	<p>In this project, we implemented three ways to use a mipmap: zero level sampling, nearest level sampling, and bilinear level sampling.</p>
+	<p>Zero level sampling is the naive solution. It only uses the full resolution texture. This takes the least memory as it only requires one mip level. It also works the fastest as it doesn't require linearly interpolating colors. However, it provides no anti-aliasing.</p>
+	<p>Nearest level sampling chooses a single texture level to use to color each pixel. We map the pixel’s location (x, y) to (u, v) texture space. Then, we map two more points to texture space: the pixel one directly above (x, y+1), and the one directly to the right (x+1, y). By subtracting the original (u, v) from each of these other texture space coordinates, we can see the derivative of (u, v) with respect to x and y. Then, we take the L2 norm of those derivatives to get a scalar of how quickly the (u, v) coordinates jump for a unit change in x or y, and take the max of these norms to see what the fastest jump is. Finally, we calculate the binary log of the max distance. In nearest level sampling, we round this value to the nearest integer, giving us the index of the appropriate level.</p>
+	<p>Nearest level sampling requires more memory usage because it requires the storage of all mip levels. It also takes a bit more computation power and time — every pixel's level must be individually calculated. This trades memory and speed in exchange for much better anti-aliasing.</p>
+	<p>Finally, bilinear level sampling is a method which provides even stronger anti-aliasing than nearest level sampling. In the previous method, the final step is to round the calculation to an integer that represents pixel level. For bilinear level sampling, we instead sample the color from the mip levels above (using nearest neighbor or bilinear interpolation) and below the float we got from the binary log. Then, we blend the two colors together using linear interpolation to get the final color.</p>
+	<p>This method takes on even more computation time as we need to perform linear interpolation on two mip levels. However, it provides the most accurate anti-aliasing effect as it smooths places near level boundaries.</p>
+
+
+	<div>
+		<table class="two-column-table">
+			<tr>
+				<td>
+					<img src="images/L_ZERO_P_NEAREST.png" />
+					<figcaption><i>Mipmap Level Zero; Nearest-Pixel Sampling</i></figcaption>
+				</td>
+				<td>
+					<img src="images/L_ZERO_P_LINEAR.png" />
+					<figcaption><i>Mipmap Level Zero; Bilinear Sampling</i></figcaption>
+				</td>
+			</tr>
+			<br>
+			<tr>
+				<td>
+					<img src="images/L_NEAREST_P_NEAREST.png" />
+					<figcaption><i>Nearest Mipmap Level; Bilinear Sampling</i></figcaption>
+				</td>
+				<td>
+					<img src="images/L_NEAREST_P_LINEAR.png" />
+					<figcaption><i>Nearest Mipmap Level; Bilinear Sampling</i></figcaption>
+				</td>
+			</tr>
+		</table>
+	</div>
+	<br>
+	<br>
+	<p>Finally, let’s look at tradeoffs between our various techniques.</p>
+	<p>Memory wise, mipmaps require slightly more memory than pixel sampling techniques and supersampling. However, entire mipmaps are optimized to only require double the memory of the default scale.</p>
+	<p>Speedwise, supersampling requires far more computation power than the other methods. It’s often infeasible to take many supersamples while texturing, especially for real-time rendering</p>
+	<p>All three methods provide strong anti-aliasing power but different applications require different combinations of these anti-aliasing techniques.</p>
+
+	<h2>Art Competition</h2>
+	<p>We used an online tool called <a href="https://ondras.github.io/primitive.js/">primitive.js</a>, which redraws raster images using only primitive shapes like triangles, rectangles, and ellipses. We inputted a photo that William took on the Berkeley Fire Trails and set the tool to use only opaque triangles and saved the resulting SVG code. However, the raw SVG output isn’t compatible with this project’s SVG parser code, so we wrote a Python script to translate the SVG into the subset that could be processed by our renderer. First, it replaces the path elements with polygon elements. Second, it converts decimal RGB fill values to hexadecimal. We also manually replaced the SVG header with one from one of the sample SVGs.</p>
+	<p>As an artistic choice, we also modified our Monte Carlo sampling code to do something we call “overjittering”. We take the random displacement generated by our existing code and multiply it by a constant (in this case 3) before adding it to the sample coordinates. This way, instead of sampling withing the immediate neighborhood of the pixel, we sample a random spot up to 1.5 pixels away. This gives a nice grainy, hand-drawn feel. We left the sample rate at 1 to maximize this. The final image is still formed from triangles, but has somewhat of a spray-paint effect:</p>
+
+	<img src="images/yummysquare.png" class="big-image" /> -->
+
+</body>
+
 </html>
