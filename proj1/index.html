@@ -1,284 +1,571 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
 <head>
-<style>
-  /* narrow window or mobile */
-  body {
-    margin: 20px;
-    font-family: 'Verdana', sans-serif;
-    color: #121212;
-  }
-  /* wide window */
-  @media only screen and (min-width: 1000px) {
+  <style>
+    /* narrow window or mobile */
     body {
-      width: calc(min(1000px, 80vw));
-      margin: 40px auto;
+      margin: 20px;
+      font-family: 'Verdana', sans-serif;
+      color: #121212;
     }
-  }
-  h1, h2, figcaption {
-    text-align: center;
-  }
-  .two-column-table {
-    width: 100%;
-  }
-  .two-column-table td {
-    padding: 3vw;
-  }
-  h2 {
-    margin-top: 50px;
-  }
-  .normal-image {
-    width: calc(min(80%, 600px));
-  }
-  .right-image {
-    width: calc(min(40vw, 400px));
-  }
-  .big-image, .two-column-table img {
-    width: 100%;
-  }
-</style>
-<title>CS 184 Rasterizer</title>
-<meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    /* wide window */
+    @media only screen and (min-width: 1000px) {
+      body {
+        width: calc(min(1000px, 80vw));
+        margin: 40px auto;
+      }
+    }
+
+    h1,
+    h2,
+    figcaption {
+      text-align: center;
+    }
+
+    .two-column-table {
+      width: 100%;
+    }
+
+    .two-column-table td {
+      padding: 3vw;
+    }
+
+    h2 {
+      margin-top: 50px;
+    }
+
+    .normal-image {
+      display: block;
+      width: calc(min(80%, 600px));
+      margin: 0 auto;
+    }
+
+    .small-image {
+      display: block;
+      width: calc(min(48%, 360px));
+      margin: 0 auto;
+    }
+
+    .right-image {
+      width: calc(min(40vw, 400px));
+    }
+
+    .big-image,
+    .two-column-table img {
+      width: 100%;
+    }
+  </style>
+  <title>CS 184 Mesh Edit</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+
 </head>
 
 
 <body>
 
-<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
-<h1 align="middle">Project 1: Rasterizer</h1>
-<h2 align="middle">Gabriel Mitnick and William Fei, CS184</h2>
-<div align="middle">
-  <img src="images/duckhotdog.png" align="middle" class="normal-image"/>
-</div>
-<br><br>
+  <h1>CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+  <h1>Project 2: Mesh Edit</h1>
+  <h2>Gabriel Mitnick and William Fei</h2>
 
-<div>
-
-<h2 align="middle">Overview</h2>
-<p>In this project, we implemented a program that renders scalable vector graphics files. We begin with the basics: drawing triangles on a screen. By applying refinement processes including antialiasing, matrix transforms, barycentric coordinate interpolation for colors, and texture mapping, we improve our capacity to render increasingly complex images.</p>
-
-<h2 align="middle">Task 1: Rasterizing single-color triangles</h2>
-
-<p>A screen is a rectangular grid of pixels. Rasterizing a triangle means choosing which pixels should get colored and which should not in order to draw the triangle on the pixel grid.</p>
-<p>For each pixel, we must determine whether it falls within the triangle. Consider a point <i>p</i> and a triangle with vertices <i>a</i>, <i>b</i>, and <i>c</i>. We want to test if that point is inside the triangle. Starting with edge <b>ab</b>, take the dot product of vector <b>ap</b> with a vector normal to <b>ab</b>. Repeat with edge <b>bc</b> and edge <b>ca</b>. If the signs of the dot products are all nonnegative OR all nonpositive, the point falls within the triangle or on its boundary. (Whether the dot products are nonnegative or nonpositive depends on whether the vertices are in clockwise or counterclockwise order.) Otherwise, if the signs of the dot products don’t match, the point is outside of the triangle.</p>
-<p>A naive solution would run this test on every pixel within the screen, but one can slightly optimize this solution by only looking at pixels within a triangles’ bounding box. The bounding box is defined by x ∈ [xMin, xMax] and y ∈ [yMin, yMax] where these variables represent the smallest and largest coordinate values of the three vertices, bound to the size of the framebuffer. For example, xMax := min(max(x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>), framewidth).</p>
-<p>This algorithm is no worse than one that checks each sample within the bounding box of the triangle simply because our algorithm is exactly the one that checks each sample within the bounding box of the rectangle.</p>
-<div align="middle">
-  <img src="images/task1screenshot.png" align="middle" class="normal-image"/>
-  <p align="middle"><i>Note the jaggies caused by aliasing</i></p>
-</div>
-
-<h2 align="middle">Task 2: Antialiasing triangles</h2>
-
-<p>Naive rasterization takes one point sample for each pixel. This creates aliasing issues, which manifest visually as artifacts like jaggies.</p>
-<p>Supersampling is an anti-aliasing technique that lessens these artifacts. In supersampling, we take multiple samples from the square neighborhood of each pixel and average them to calculate the resulting color for each pixel.</p>
-<p>In our implementation, the number of samples per pixel is the variable <i>sample_rate</i>. Assuming our sample points lie on a grid, we see sqrt(<i>sample_rate</i>) rows and sqrt(<i>sample_rate</i>) columns of samples for each pixel.</p>
-<p>To perform supersampling, we must perform the triangle test described above at each sample point. Then we take the average of each sample to determine the final pixel color. For instance, if our sample_rate is 4, and for a pixel, three samples fall inside the triangle and one falls outside, the pixel will be painted with the triangle’s fill color at 75% opacity. This averaging creates intermediary colors between the triangle’s fill color and the background color. The gradual color change visually reduces the staircase edges, or jaggies, and instead gives a smoother, less aliased output. Here are the results of taking 4, 9, and 16 supersamples per pixel:</p>
-<div align="middle">
-  <table class="two-column-table">
-    <tr>
-      <td>
-        <img src="images/task2supersample1.png"/>
-        <figcaption align="middle"><i>Sample Rate 1</i></figcaption>
-      </td>
-      <td>
-        <img src="images/task2supersample4.png"/>
-        <figcaption align="middle"><i>Sample Rate 4</i></figcaption>
-      </td>
-    </tr>
-    <br>
-    <tr>
-      <td>
-        <img src="images/task2supersample9.png"/>
-        <figcaption align="middle"><i>Sample Rate 9</i></figcaption>
-      </td>
-      <td>
-        <img src="images/task2supersample16.png"/>
-        <figcaption align="middle"><i>Sample Rate 16</i></figcaption>
-      </td>
-    </tr>
-  </table>
-</div>
-<br>
-<p>Two notes on supersampling:</p>
-<p>1) While supersampling reduces the impact of aliasing, it does not completely eliminate it.</p>
-<p>2) This square neighborhood around a pixel is often itself called a pixel, but more properly, each pixel is only a single point of color. See <a href= "http://alvyray.com/Memos/CG/Microsoft/6_pixel.pdf">Alvy Ray Smith’s “A Pixel Is Not A Little Square”</a></p>
-
-<h2>Task 2 Extra Credit</h2>
-
-<p>For extra credit, we implemented an alternative supersampling pattern called Monte Carlo supersampling.</p>
-<p>There is an issue with supersampling along a perfect grid. If the underlying image or geometrical pattern happens to have a periodicity that lines up with the supersampling grid, the result can be aliased just as badly as if supersampling weren’t used. As an example, we made a test SVG file that shows strong aliasing under a regular grid sampling pattern with a <i>sample_rate</i> of 1 or 4. The demo SVG contains 200 thin vertical rectangular black stripes on a white background, covering the region within 100px of the left edge of the image. (When we extended the number of stripes, we got unpredictable results, probably due to the imprecise sizing of the viewing frame.) When rendered at the default size, the stripes line up with the pixel grid as follows. Each column of pixels has two stripes passing through it. For example, the column from x=0 to x=1, that neighborhood contains a first stripe from x=⅛ to ⅜ and a second from x=⅝ to ⅞. (We generated this SVG with a short Python script to generate 200 polygon tags.)</p>
-<div align="middle">
-  <table>
-    <tr>
-      <td>
-        <p>This pattern shows a high frequency of 2 oscillations per pixel width, which is above the Nyquist frequency of ½ oscillations per pixel width, so a perfect anti-aliased rasterization would filter out that frequency and show the average color 50% gray. But when each pixel is calculated from a single sample at x=½, every sample falls between stripes and the resulting image looks all white:</p>
-      </td>
-      <td>
-        <img src="images/montecarlodemo1.png" class="right-image"/>
-      </td>
-    </tr>
-    <br>
-    <tr>
-      <td>
-        <p>And when we take 4 supersamples on a grid, at (¼, ¼), (¼, ¾), (¾, ¼), (¾, ¾), the aliasing is just as bad, but now all the samples land on the stripes and the resulting image looks all black for the striped region:</p>
-      </td>
-      <td>
-        <img src="images/montecarlodemo2.png" class="right-image"/>
-      </td>
-    </tr>
-  </table>
-</div>
-<p>In Monte Carlo supersampling, we randomly jitter the location of each sample. For example, with a <i>sample_rate</i> of 4, instead of taking the first sample from the center of the first quadrant, we take it from a random point within that quadrant. This reduces aliasing at the cost of adding noise. </p>
-<div align="middle">
-  <table>
-    <tr>
-      <td>
-        <p>Here is the result with <i>sample_rate</i> 1. Each pixel in the striped region has a 50% chance of being white and 50% chance of being black. This image shows noise that isn’t present in the actual SVG geometry. But on the other hand, the striped region ends up with an average color of 50% gray, which is correct, so for many purposes this result is better than the grid-supersampled results with <i>sample_rate</i> 1 or 4.</p>
-      </td>
-      <td>
-        <img src="images/montecarlodemo3.png" class="right-image"/>
-      </td>
-    </tr>
-    <br>
-    <tr>
-      <td>
-        <p>When we bump up <i>sample_rate</i> to 4, the result becomes a bit better. Now 1/16 pixels are black, ¼ are 25% gray, ⅜ are 50% gray, ¼ are 75% gray, and 1/16 are white. This distribution is still not perfect, and you can see the undesirable noise in the image, but this result is definitely closer to the ideal all–50% gray than any of the previous results, without requiring more samples.</p>
-      </td>
-      <td>
-        <img src="images/montecarlodemo4.png" class="right-image"/>
-      </td>
-    </tr>
-  </table>
-</div>
-
-<h2 align="middle">Task 3: Transforms</h2>
-
-<div align="middle">
-  <img src="images/robotdab.png" align="middle" class="normal-image"/>
-</div>
-<p>We implemented matrix transforms for translation, scaling, and rotation using matrix operations with homogeneous coordinates.</p>
-<p>Our updated cubeman is doing the dab. Implementing this required us to update the translation and rotation values. We also gave cubeman a new head color for clarity as his arm is layed on top.</p>
-<br>
-
-<h2 align="middle">Task 4: Barycentric coordinates</h2>
-
-<p>Barycentric coordinates represent the position of any point in a triangle with respect to its proximity to the three vertices. The three scalar values, α, β, and γ, sum to 1, and if the point is within the triangle, they are all between 0 and 1.</p>
-<p>Barycentric coordinates can be used to interpolate between values defined at the vertices of a triangle, like color. We can determine the color of any point in a triangle by using α, β, and γ as weights in a weighted average of the colors defined for the vertices.</p>
-<div align="middle">
-  <table>
-    <tr>
-      <td>
-        <p>For example, this triangle has vertices A, B, and C, and our point of interest has barycentric coordinates (0.6, 0.2, 0.2). Both the math and the drawing reveal that this point is closest to vertice A and equidistant from B and C. A is colored red, B is colored green, and C is colored blue, so the color at this chosen point is mostly red, with some green and blue mixed in.
-        </p>
-      </td>
-      <td>
-        <img src="images/barycentricexplanation.png" align="top" class="right-image"/>
-      </td>
-    </tr>
-    <br>
-  </table>
-</div>
-<br>
-<div align="middle">
-  <img src="images/task4circle.png" class="normal-image"/>
-  <p align="middle"><i>Smooth Color Wheel Created with Barycentric Coordinate Interpolation</i></p>
-</div>
-
-<h2 align="middle">Task 5: "Pixel sampling" for texture mapping</h2>
-
-<p>Pixel sampling is a process that maps the screen to texture maps. It requires the use of barycentric interpolation to map screen space (x, y) to texture space (u, v). However, this process will not automatically map each pixel in screen space to a single texel. The corresponding (u, v) point may be non-integral, lying between texels.</p>
-<p>One solution to this disparity is using the nearest neighbor sampling method: simply round (u, v) to the nearest texel coordinate and sample the texture there. This is easy, but produces obvious aliasing. For example, if multiple screen pixels correspond to (u, v) points with the same nearest neighbor, they’ll all end up with the same color, making the result appear pixelated.</p>
-<p>A better solution is bilinear sampling. This method takes samples of the four texels around the point, instead of just the single nearest point. Then it uses the u coordinate to lerp between the two pairs of colors, and uses the v coordinate to lerp between those two lerped values, choosing a final bilinearly-interpolated result color. Because our output cells blend four nearby pixel colors instead of taking just one, the resulting image will appear smoother:</p>
-<div align="middle">
-  <table class="two-column-table">
-    <tr>
-      <td>
-        <img src="images/task5nearest1.png"/>
-        <figcaption align="middle"><i>Nearest Pixel Sampling at 1 sample per pixel</i></figcaption>
-      </td>
-      <td>
-        <img src="images/task5bilinear1.png"/>
-        <figcaption align="middle"><i>Bilinear Pixel Sampling at 1 sample per pixel</i></figcaption>
-      </td>
-    </tr>
-    <br>
-  </table>
-</div>
-<br>
-<p>Another thing to consider is sampling rate. If the texture is “zoomed out”, that is, adjacent points in screen space correspond to points several texels away from each other in texture space, we’ll have aliasing. Even if we use bilinear interpolation, each pixel will only represent a single sample from the interpolated texture, even though there are several texel’s in the pixel’s “neighborhood”. If we take more samples from the texture for each pixel, we can alleviate this aliasing. More texels will be represented, so the output will be smoother:</p>
-<div align="middle">
-  <table class="two-column-table">
-    <tr>
-      <td>
-        <img src="images/task5nearest16.png"/>
-        <figcaption align="middle"><i>Nearest Pixel Sampling at 16 samples per pixel</i></figcaption>
-      </td>
-      <td>
-        <img src="images/task5bilinear16.png"/>
-        <figcaption align="middle"><i>Bilinear Pixel Sampling at 16 samples per pixel</i></figcaption>
-      </td>
-    </tr>
-    <br>
-  </table>
-</div>
-<br>
-<p>As these results show, the nearest sampling method is significantly less bad when paired with supersampling. The best result comes from combining these methods, using both the sampling rate of 16 and bilinear pixel samping</p>
-<p>There will be a large difference between these two methods when dealing with a more granular, high-resolution texture. Small-scale/high-frequency texture details like thin lines or hair strands will result in sudden changes between neighboring pixels. Using higher sampling rates and the bilinear sampling method instead of the nearest neighbor method will provide the best results.</p>
-
-<h2 align="middle">Task 6: "Level sampling" with mipmaps for texture mapping</h2>
-
-<p>Oftentimes, when attempting to texture map a scene, different parts require different amounts of detail. If far-away objects and nearby objects all use single samples from the same texture, two problems can happen. First, textures on geometry close to the camera might appear blurry if the texture is too low-resolution. Second, textures on geometry in the background could be sampling sparsely from a texture that is too high-resolution. We would either see an aliased final image, or we’d have to perform computation-heavy anti-aliasing on the spot.</p>
-<p>One solution is to pre-compute and store various resolutions for a single image. These stack of scaled images of one texture is called a mipmap. Level zero of a mipmap represents the full resolution texture, and each successive level is downscaled with proper antialiasing to half the height and width. Now, by sampling from the appropriate level of the mipmap for each point, we can reduce aliasing without performing much extra computation.</p>
-<p>At a high level, we use high-resolution mip levels for objects close to the camera as they require higher-density samples. On the other hand, we use low-resolution mip levels for further away objects. The size of the texture on a fragment, and thus the appropriate mip level, can also depend on other factors, like the texture coordinates defined in the model we’re rendering, or the angle at which we’re looking at a triangle.</p>
-<br>
-<p>In this project, we implemented three ways to use a mipmap: zero level sampling, nearest level sampling, and bilinear level sampling.</p>
-<p>Zero level sampling is the naive solution. It only uses the full resolution texture. This takes the least memory as it only requires one mip level. It also works the fastest as it doesn't require linearly interpolating colors. However, it provides no anti-aliasing.</p>
-<p>Nearest level sampling chooses a single texture level to use to color each pixel. We map the pixel’s location (x, y) to (u, v) texture space. Then, we map two more points to texture space: the pixel one directly above (x, y+1), and the one directly to the right (x+1, y). By subtracting the original (u, v) from each of these other texture space coordinates, we can see the derivative of (u, v) with respect to x and y. Then, we take the L2 norm of those derivatives to get a scalar of how quickly the (u, v) coordinates jump for a unit change in x or y, and take the max of these norms to see what the fastest jump is. Finally, we calculate the binary log of the max distance. In nearest level sampling, we round this value to the nearest integer, giving us the index of the appropriate level.</p>
-<p>Nearest level sampling requires more memory usage because it requires the storage of all mip levels. It also takes a bit more computation power and time — every pixel's level must be individually calculated. This trades memory and speed in exchange for much better anti-aliasing.</p>
-<p>Finally, bilinear level sampling is a method which provides even stronger anti-aliasing than nearest level sampling. In the previous method, the final step is to round the calculation to an integer that represents pixel level. For bilinear level sampling, we instead sample the color from the mip levels above (using nearest neighbor or bilinear interpolation) and below the float we got from the binary log. Then, we blend the two colors together using linear interpolation to get the final color.</p>
-<p>This method takes on even more computation time as we need to perform linear interpolation on two mip levels. However, it provides the most accurate anti-aliasing effect as it smooths places near level boundaries.</p>
+  <h2>Overview</h2>
+  <p>
+    In this project, we implemented a variety of algorithms to create and render meshes. We started by implementing de Casteljau subdivision for 2D Bézier curves. Next, we extended this formula to work with 3D Bézier surfaces. We then explored triangle meshes, implementing area-weighted vertex normals to display surfaces more smoothly, and adding support for flip and split operations in the halfedge data structure. Finally, we implemented loop subdivision which upsample meshes to create smoother objects.
+  </p>
+  <br>
 
 
-<div align="middle">
-  <table class="two-column-table">
-    <tr>
-      <td>
-        <img src="images/L_ZERO_P_NEAREST.png"/>
-        <figcaption align="middle"><i>Mipmap Level Zero; Nearest-Pixel Sampling</i></figcaption>
-      </td>
-      <td>
-        <img src="images/L_ZERO_P_LINEAR.png"/>
-        <figcaption align="middle"><i>Mipmap Level Zero; Bilinear Sampling</i></figcaption>
-      </td>
-    </tr>
-    <br>
-    <tr>
-      <td>
-        <img src="images/L_NEAREST_P_NEAREST.png"/>
-        <figcaption align="middle"><i>Nearest Mipmap Level; Bilinear Sampling</i></figcaption>
-      </td>
-      <td>
-        <img src="images/L_NEAREST_P_LINEAR.png"/>
-        <figcaption align="middle"><i>Nearest Mipmap Level; Bilinear Sampling</i></figcaption>
-      </td>
-    </tr>
-  </table>
-</div>
-<br>
-<br>
-<p>Finally, let’s look at tradeoffs between our various techniques.</p>
-<p>Memory wise, mipmaps require slightly more memory than pixel sampling techniques and supersampling. However, entire mipmaps are optimized to only require double the memory of the default scale.</p>
-<p>Speedwise, supersampling requires far more computation power than the other methods. It’s often infeasible to take many supersamples while texturing, especially for real-time rendering</p>
-<p>All three methods provide strong anti-aliasing power but different applications require different combinations of these anti-aliasing techniques.</p>
+  <h2>Section I: Bezier Curves and Surfaces</h2>
 
-<h2>Art Competition</h2>
-<p>We used an online tool called <a href="https://ondras.github.io/primitive.js/">primitive.js</a>, which redraws raster images using only primitive shapes like triangles, rectangles, and ellipses. We inputted a photo that William took on the Berkeley Fire Trails and set the tool to use only opaque triangles and saved the resulting SVG code. However, the raw SVG output isn’t compatible with this project’s SVG parser code, so we wrote a Python script to translate the SVG into the subset that could be processed by our renderer. First, it replaces the path elements with polygon elements. Second, it converts decimal RGB fill values to hexadecimal. We also manually replaced the SVG header with one from one of the sample SVGs.</p>
-<p>As an artistic choice, we also modified our Monte Carlo sampling code to do something we call “overjittering”. We take the random displacement generated by our existing code and multiply it by a constant (in this case 3) before adding it to the sample coordinates. This way, instead of sampling withing the immediate neighborhood of the pixel, we sample a random spot up to 1.5 pixels away. This gives a nice grainy, hand-drawn feel. We left the sample rate at 1 to maximize this. The final image is still formed from triangles, but has somewhat of a spray-paint effect:</p>
+  <h3>Part 1: Bezier Curves with 1D de Casteljau Subdivision</h3>
 
-<img src="images/yummysquare.png" align="middle" class="big-image"/>
 
-</div>
+  <b>
+    Briefly explain de Casteljau's algorithm and how you implemented it in order to evaluate Bezier curves.
+  </b>
+  <p>
+    In computer graphics, we often require a method to represent smooth, continuous curves. We want to be able to draw these curves through any predefined points, and be able to link curves together indefinitely. We are able to achieve all this using the Bézier curve.
+  </p>
+  <p>
+    This technology powers the resolution-independent SVG file format. It allows us to create fluid typefaces at all scales such that on-screen text looks good from 12pt to 72pt. The Bézier curve is used in highway route modeling, networks, robotics, and has applications in many other fields.
+  </p>
+  <p>
+    We evaluate Bézier curves using a method called de Casteljau's algorithm. This algorithm recursively applies <b>linear interpolation</b> to compute a Bézier Curve. Linear interpolation is defined as follows: Given u, (1 - u)A + uB is the point C that divides AB in the ratio u:1-u. To explain how we arrived at this value, take a vector from A to B represented by B - A. Define the variable u, which is a ratio between 0 and 1 that represents the distance traveled along the line. Therefore, point C would be located at C = A + u(B - A) = (1 - u)A + uB.
+  </p>
+  <p>
+    Our implementation of <i>evaluateStep()</i> performs one step of de Casteljau's algorithm. We initialize a 2Dvector <i>result</i> then iterate through each pair of consecutive points in 2Dvector points and perform the lerp function between them (evaluated at parameter t). We use <i>result.push_back()</i> to store each newly computed point, building our return vector following one step of de Casteljau. This return vector will contain one fewer point than the previous; if there were only two points to begin with, our function returns the final interpolated vector.
+  </p>
+
+
+  <br>
+
+
+  <b>
+    Take a look at the provided .bzc files and create your own Bezier curve with 6 control points of your choosing. Use this Bezier curve for your screenshots below.
+  </b>
+  <br>
+  <br>
+  <div>
+    <img src="images/pt1step1.png" class="small-image" />
+  </div>
+  <br>
+  <b>
+    Show screenshots of each step / level of the evaluation from the original control points down to the final evaluated point. Press <kbd>E</kbd> to step through. Toggle <kbd>C</kbd> to show the completed Bezier curve as well.
+  </b>
+  <div>
+    <table class="two-column-table">
+      <tr>
+        <td>
+          <img src="images/pt1step1.png" />
+          <figcaption><i>Step 1</i></figcaption>
+        </td>
+        <td>
+          <img src="images/pt1step2.png" />
+          <figcaption><i>Step 2</i></figcaption>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <img src="images/pt1step3.png" />
+          <figcaption><i>Step 3</i></figcaption>
+        </td>
+        <td>
+          <img src="images/pt1step4.png" />
+          <figcaption><i>Step 4</i></figcaption>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <img src="images/pt1step5.png" />
+          <figcaption><i>Step 5</i></figcaption>
+        </td>
+        <td>
+          <img src="images/pt1step6.png" />
+          <figcaption><i>Step 6</i></figcaption>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <img src="images/pt1complete.png" />
+          <figcaption><i>Complete Curve</i></figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <br>
+
+
+  <b>
+    Show a screenshot of a slightly different Bezier curve by moving the original control points around and modifying the parameter \(t\) via mouse scrolling.
+  </b>
+  <p>
+  <div>
+    <img src="images/pt1modified.png" class="normal-image" />
+  </div>
+  </p>
+  <br>
+
+
+  <h3>Part 2: Bezier Surfaces with Separable 1D de Casteljau</h3>
+  <b>
+    Briefly explain how de Casteljau algorithm extends to Bezier surfaces and how you implemented it in order to evaluate Bezier surfaces.
+  </b>
+  <p>
+    Beyond 1D Bézier curves, de Casteljau's algorithm is also applicable to 2D Bézier surfaces. A Bézier surface is defined by a 2D Bézier patch of <i>m×n</i> control points. We can interpret these control points as follows: we perform de Casteljau on each row of control points to compute <i>m</i> values. Then these <i>m</i> values serve as the control points for another Bézier curve. More specifically, we will perform de Casteljau's algorithm by looping through the curves to determine a point at parameter <i>u</i> defined by each <i>m</i>. Then, we repeat de Casteljau at parameter <i>v</i> in the <i>n</i> dimension to interpolate a single, final vector.
+  </p>
+  <p>
+    In implementation, we used a loop that traverses all <i>m</i> rows and stores its points in 3Dvector <i>uPoints</i>. Then, we perform one additional runthrough of de Casteljau using all of <i>uPoints</i> and time parameter <i>v</i>. The function <i>evaluate1D</i> makes it convenient for us to compute all 3 levels of de Casteljau with a single call.</p>
+  <br>
+
+
+  <b>
+    Show a screenshot of bez/teapot.bez (not .dae) evaluated by your implementation.
+  </b>
+  <p>
+  <div>
+    <img src="images/pt2teapot.png" class="normal-image" />
+  </div>
+  </p>
+  <br>
+
+
+  <h2>Section II: Triangle Meshes and Half-Edge Data Structure</h2>
+
+  <h3>Part 3: Area-Weighted Vertex Normals</h3>
+
+  <p>
+    In this section, we delve into triangle meshes, another data format used for 3D geometric modeling. Triangle meshes consist of a large number of triangles which are linked into shapes by common edges and vertices. In order to keep track of so many triangles and their connectivities, we utilize the power of the half-edge data structure.
+  </p>
+  <p>
+    The half-edge data structure stores triangle vertices, edges, and faces. It also stores half-edges which allow us to access the “twin” edges of neighboring triangles. Algorithmically accessing edges and their twins allows us to traverse polygon meshes.
+  </p>
+  <b>
+    Briefly explain how you implemented the area-weighted vertex normals.
+  </b>
+  <p>
+    To implement area-weighted vertex normals, we start by taking our vertex in consideration and using a do-while loop to iterate through every incident face (the faces which share this common vertex).
+  </p>
+  <p>
+    Beginning with the first face, we obtain the two vectors corresponding to the direction and length of the two edges incident to the target vertex <code>v1 = h-&gt;vertex()-&gt;position - position</code> and <code>v2 = h-&gt;next()-&gt;twin()-&gt;vertex()-&gt;position - position</code>. We then compute the cross product of these two vectors and add it to the 3D vector <i>result</i>. The direction of the cross product is normal to the face and its magnitude is proportional to the area of the face.
+  </p>
+  <p>
+    Now, we repeat this calculation on the next face. The line <code>h = h-&gt;next()-&gt;twin()</code> traverses to the next incident half-edge. The <i>result</i> vector continues to add subsequent cross products.
+  </p>
+  <p>
+    This process is repeated on every face incident to the initial vector. Upon returning to the initial halfedge, we break out of the do-while loop. At this point, we normalize the result vector to obtain our final result, the approximate unit normal at this vertex.
+  </p>
+  <br>
+
+
+  <b>
+    Show screenshots of dae/teapot.dae (not .bez) comparing teapot shading with and without vertex normals. Use <kbd>Q</kbd> to toggle default flat shading and Phong shading.
+  </b>
+  <div>
+    <table class="two-column-table">
+      <tr>
+        <td>
+          <img src="images/pt3flat.png" />
+          <figcaption><i>Mesh without vertex normals</i></figcaption>
+        </td>
+        <td>
+          <img src="images/pt3phong.png" />
+          <figcaption><i>Mesh with vertex normals</i></figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <br>
+
+
+  <h3>Part 4: Edge Flip</h3>
+  <b>
+    Briefly explain how you implemented the edge flip operation and describe any interesting implementation / debugging tricks you have used.
+  </b>
+  <p>
+    The edge-flip operation is one common operation to modify a mesh. It replaces an edge with one that goes between the two opposite vertices of its two neighboring triangles.
+  </p>
+  <p>
+    Implementation: We began by fetching every halfedge, vertex, and face of the two neighboring triangles. Then, for each halfedge, we reassign the nexts, twins, faces, etc. with <i>setNeighbors</i> to their new values post-edge-flip, and we respecify the halfedges for each vertex and face. Another thing to note, this function requires that neither neighboring face can be on a boundary. We satisfied this requirement by performing an initial call to isBoundary(), and if true, we set the function to immediately return.
+  </p>
+  <p>
+    Interesting implementation/debugging tricks: Before implementing edge flip in code, we first worked out the logic on paper for thoroughness’ sake. This would help us stay organized during debugging as we knew this task would require us to reassign many pointers. This visual aid saved us a lot of time in the long run as we were able to get this function to work correctly on our first attempts.
+  </p>
+  <div>
+    <img src="images/pt4debugging.jpeg" class="small-image" />
+  </div>
+
+  <br>
+
+
+  <b>
+    Show screenshots of the teapot before and after some edge flips.
+  </b>
+  <div>
+    <table class="two-column-table">
+      <tr>
+        <td>
+          <img src="images/pt4before.png" />
+          <figcaption><i>Teapot before some edge flips</i></figcaption>
+        </td>
+        <td>
+          <img src="images/pt4after.png" />
+          <figcaption><i>Teapot after some edge flips</i></figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <br>
+
+
+  <b>
+    Write about your eventful debugging journey, if you have experienced one.
+  </b>
+  <p>
+    We thankfully got the implementation correct on one of our first attempts due to our thorough prework on pencil and paper.
+  </p>
+  <br>
+
+
+  <h3>Part 5: Edge Split</h3>
+  <b>
+    Briefly explain how you implemented the edge split operation and describe any interesting implementation / debugging tricks you have used.
+  </b>
+  <p>
+    The edge split operation is another method to modify meshes. It takes two neighboring triangles and “splits” the triangle into four via the common edge’s midpoint.
+  </p>
+  <p>
+    Implementation: We underwent a similar process as that of edge-flip, but it required more pointer work, creating new edges, faces, and vertices. We similarly wrote an initial call to <i>isBoundary()</i> to ignore requests to split boundary edges.
+  </p>
+  <p>
+    Interesting implementation/debugging tricks: We again drew out a diagram on paper before proceeding with code.
+  </p>
+  <div>
+    <img src="images/pt4debugging.jpeg" class="small-image" />
+  </div>
+  <br>
+
+
+  <b>
+    Show screenshots of a mesh before and after some edge splits.
+  </b>
+  <div>
+    <table class="two-column-table">
+      <tr>
+        <td>
+          <img src="images/pt5beforeS.png" />
+          <figcaption><i>Teapot before some edge splits</i></figcaption>
+        </td>
+        <td>
+          <img src="images/pt5afterS.png" />
+          <figcaption><i>Teapot after some edge splits</i></figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <br>
+
+
+  <b>
+    Show screenshots of a mesh before and after a combination of both edge splits and edge flips.
+  </b>
+  <div>
+    <table class="two-column-table">
+      <tr>
+        <td>
+          <img src="images/pt5beforeFS.png" />
+          <figcaption><i>Teapot before some edge splits and flips</i></figcaption>
+        </td>
+        <td>
+          <img src="images/pt5afterFS.png" />
+          <figcaption><i>Teapot after some edge splits and flips</i></figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <br>
+
+
+  <b>
+    Write about your eventful debugging journey, if you have experienced one.
+  </b>
+  <p>
+    We also luckily were able to get this code right on almost the first try.
+  </p>
+  <br>
+
+
+  <b>
+    If you have implemented support for boundary edges, show screenshots of your implementation properly handling split operations on boundary edges.
+  </b>
+  <p>
+    N/A
+  </p>
+  <br>
+
+
+  <h3>Part 6: Loop Subdivision for Mesh Upsampling</h3>
+  <p>
+    Loop subdivision is a method of upsampling a mesh, increasing its resolution to make it smoother. It requires us to subdivide each triangle into four smaller triangles, and then update the coordinates of each vertex based on a weighted average with its neighbors.
+  </p>
+  <b>
+    Briefly explain how you implemented the loop subdivision and describe any interesting implementation / debugging tricks you have used.
+  </b>
+  <p>
+    Implementation: First, we iterate through each existing vertex and reset isNew to false. For each vertex, we iterate over its neighbor vertices and sum their vertex locations (stored as <code>neighborSum</code>). We can then determine the new vertex coordinates using formula <code>(1 - n * u) * originalCoordinates + u * neighborSum</code>. Here, <code>n</code> is the vertex degree, and <code>u</code> is 3/16 if <code>n == 3</code>, else 3/(8n). We store the new coordinates in <code>v-&gt;newPosition</code>.
+  </p>
+  <p>
+    Second, we iterate through every edge, setting their isNew() to false, then computing the updated vertex positions associated with each edge. We utilize the formula 3/8 * (A + B) + 1/8 * (C + D) where (A, B) is the shared edge and C and D are the other two vertices that compose the two faces.
+  </p>
+  <p>
+    Third, we split every edge in the mesh, utilizing the splitEdge() function from part five. The flipEdge() function from part four is then used to flip any new edge that joins an old and new vertex. Finally, for each vertex <code>v</code>, we copy <code>v-&gt;newPosition</code> into <code>v-&gt;position</code>.
+  </p>
+  <p>Eventful Debugging journey: Our initial results from loop subdivision were very wrong. First, we commented out each part of the function and found that the problem only happened when we uncommented the edge flipping part of the algorithm. We assumed that there must have been a problem with the edge flip function that we hadn’t caught before. But while debugging, we found that when we commented out the edge flipping stage and used the mesh viewer’s keyboard controls to flip the edges that needed to be flipped, the result looked much better. The resulting surface was a bit wobbly, and we found a bug in the weighting scheme (a silly <code>if (n != 3)</code> that needed to be <code>if (n == 3)”</code>). Still, after we fixed it, the edge flip stage of the code was leaving strange holes and protruding triangles in the mesh. After re-reading the lecture slides, we found another bug in the loop subdivision function: we were flipping any edge that went between a new vertex and an old vertex, but had forgotten to check that the edge itself was new. But fixing this bug still yielded a bizarre mesh result. Finally, we found a third bug in the edge split function. We had been setting isNew=true for all 3 new edge objects we created, but instead we needed to leave isNew=false for the one new edge that is collinear with the old edge, since that edge doesn’t cut across any pre-existing triangle. After fixing this third bug, we finally got nice smooth results.
+  </p>
+  <br>
+
+
+  <b>
+    Take some notes, as well as some screenshots, of your observations on how meshes behave after loop subdivision. What happens to sharp corners and edges? Can you reduce this effect by pre-splitting some edges?
+  </b>
+
+  <div>
+    <table class="two-column-table">
+      <tr>
+        <td>
+          <img src="images/p6teapot0.png" />
+          <figcaption><i>Original Teapot</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6teapot1.png" />
+          <figcaption><i>Upsampled One Time</i></figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <img src="images/p6teapot2.png" />
+          <figcaption><i>Upsampled Two Times</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6teapot3.png" />
+          <figcaption><i>Upsampled Three Times</i></figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <img src="images/p6icosahedron0.png" />
+          <figcaption><i>Original Icosahedron</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6icosahedron1.png" />
+          <figcaption><i>Upsampled One Time</i></figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <img src="images/p6icosahedron2.png" />
+          <figcaption><i>Upsampled Two Times</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6icosahedron3.png" />
+          <figcaption><i>Upsampled Three Times</i></figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <p>
+    Observing the effects of loop subdivision, we see that it successfully alleviates chunky, rough silhouettes and improves image resolution. In regards to corners and edges, we observe that loop subdivision significantly softens sharp corners and edges. This has a stronger effect the sharper the corner/edge, and sometimes leads to dramatic results. Comparing the above images, the base icosahedron is composed of a relatively small number of sharp edges, and becomes quite round as it undergoes repeated subdivision. On the other hand, the teapot was already rather smooth to begin with, and thus better preserves its base shape while smoothening.
+  </p>
+
+  <div>
+    <table class="two-column-table">
+      <tr>
+        <td>
+          <img src="images/p6handlebefore.png" />
+          <figcaption><i>Original Teapot Handle</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6handleafter.png" />
+          <figcaption><i>Upsampled Two Times</i></figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <img src="images/p6handlebeforesplit.png" />
+          <figcaption><i>Pre-split Teapot Handle</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6handleaftersplit.png" />
+          <figcaption><i>Upsampled Two Times</i></figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <p>
+    The original teapot mesh still sees significant rounding near the handle region, so we pre-split the edges around the handle. With pre-split edges, notice that the handle better retains its definition following two rounds of upsampling.
+  </p>
+  <br>
+  <b>
+    Load dae/cube.dae. Perform several iterations of loop subdivision on the cube. Notice that the cube becomes slightly asymmetric after repeated subdivisions. Can you pre-process the cube with edge flips and splits so that the cube subdivides symmetrically? Document these effects and explain why they occur. Also explain how your pre-processing helps alleviate the effects.
+  </b>
+
+  <div>
+    <table class="two-column-table">
+      <tr>
+        <td>
+          <img src="images/p6cubebad0.png" />
+          <figcaption><i>Original Cube</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6cubebad1.png" />
+          <figcaption><i>Upsampled One Time</i></figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <img src="images/p6cubebad2.png" />
+          <figcaption><i>Upsampled Two Times</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6cubebad3.png" />
+          <figcaption><i>Upsampled Three Times</i></figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <img src="images/p6cubegood0.png" />
+          <figcaption><i>Pre-Split Cube</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6cubegood1.png" />
+          <figcaption><i>Upsampled One Time</i></figcaption>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <img src="images/p6cubegood2.png" />
+          <figcaption><i>Upsampled Two Times</i></figcaption>
+        </td>
+        <td>
+          <img src="images/p6cubegood3.png" />
+          <figcaption><i>Upsampled Three Times</i></figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <p>
+    The original cube .dae becomes progressively warped during subdivision. Looking at the base cube shape, we notice its faces are asymmetrically weighted, with some corners having more incident edges than others. This asymmetricality causes the uneven distortion.
+  </p>
+  <p>
+    We pre-process our cube by splitting its faces along certain diagonal edges to produce a symmetrical X pattern on all six faces. This allows the cube to preserve its initial symmetry during upsampling.
+  </p>
+  <br>
+
+
+  <b>
+    If you have implemented any extra credit extensions, explain what you did and document how they work with screenshots.
+  </b>
+  <p>
+    N/A
+  </p>
+  <br>
+
+
+  <h3>Part 7 (Optional, Possible Extra Credit)</h3>
+  <b>
+    Save your best polygon mesh as partsevenmodel.dae in your docs folder and show us a screenshot of the mesh in your write-up.
+  </b>
+  <p>
+    N/A
+  </p>
+  <br>
+
+
+  <b>
+    Include a series of screenshots showing your original mesh and your mesh after one and two rounds of subdivision. If you have used custom shaders, include screenshots of your mesh with those shaders applied as well.
+  </b>
+  <p>
+    N/A
+  </p>
+  <br>
+
+
+  <b>
+    Describe what you have done to enhance your mesh beyond the simple humanoid mesh described in the tutorial.
+  </b>
+  <p>
+    N/A
+  </p>
+  <br>
+
+  <h2>This write-up is hosted at <br><a href="https://gabe-mitnick.github.io/cs184-proj-webpages/proj2/index.html">gabe-mitnick.github.io/cs184-proj-webpages/proj2/index.html</a></h2>
+
 </body>
+
 </html>
