@@ -1,7 +1,310 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 3-2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+	<style>
+		/* narrow window or mobile */
+		body {
+			margin: 20px;
+			font-weight: 300;
+			font-family: 'Open Sans', sans-serif;
+			color: #121212;
+		}
+
+		/* wide window */
+		@media only screen and (min-width: 1000px) {
+			body {
+				width: calc(min(1000px, 80vw));
+				margin: 40px auto;
+			}
+		}
+
+		h1,
+		h2,
+		figcaption {
+			text-align: center;
+		}
+
+		.two-column-table {
+			width: 100%;
+		}
+
+		.two-column-table td {
+			padding: 3vw;
+		}
+
+		h2 {
+			margin-top: 50px;
+		}
+
+		.normal-image {
+			display: block;
+			width: calc(min(80%, 600px));
+			margin: 0 auto;
+		}
+
+		.small-image {
+			display: block;
+			width: calc(min(48%, 360px));
+			margin: 0 auto;
+		}
+
+		.right-image {
+			width: calc(min(40vw, 400px));
+		}
+
+		.big-image,
+		.two-column-table img {
+			width: 100%;
+		}
+	</style>
+	<title>Assignment 3-2: Additional Features to PathTracer</title>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+
+	<script>
+		MathJax = {
+			tex: {
+				inlineMath: [['$', '$'], ['\\(', '\\)']]
+			}
+		};
+	</script>
+	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+	</script>
+
+</head>
+
+
+<body>
+
+	<h1>CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+	<h1>Project 3-2: Additional Features to PathTracer</h1>
+	<h2>Gabriel Mitnick and William Fei</h2>
+
+	<!-- Add Website URL -->
+	<h2>Website URL: <a
+			href="https://gabe-mitnick.github.io/cs184-proj-webpages/proj3-2/index.html">https://gabe-mitnick.github.io/cs184-proj-webpages/proj3-2/index.html</a>
+	</h2>
+
+	<br><br>
+	<p>
+	<div>
+		<img src="images/2345.png" class="normal-image" />
+	</div>
+	</p>
+
+	<div>
+
+		<h2>Part 1. Mirror and Glass Materials</h2>
+
+		<h3>
+			Show a sequence of six images of scene `CBspheres.dae` rendered with `max_ray_depth` set to 0, 1, 2, 3, 4,
+			5, and 100. The other settings should be at least 64 samples per pixel and 4 samples per light. Make sure to
+			include all screenshots.
+		</h3>
+		<p>
+			pixel sample rate = 64, light sample rate = 4
+		</p>
+		<p>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/zero.png" />
+						<figcaption><i>Max Ray Depth = 0</i></figcaption>
+					</td>
+					<td>
+						<img src="images/one.png" />
+						<figcaption><i>Max Ray Depth = 1</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/two.png" />
+						<figcaption><i>Max Ray Depth = 2</i></figcaption>
+					</td>
+					<td>
+						<img src="images/three.png" />
+						<figcaption><i>Max Ray Depth = 3</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/four.png" />
+						<figcaption><i>Max Ray Depth = 4</i></figcaption>
+					</td>
+					<td>
+						<img src="images/five.png" />
+						<figcaption><i>Max Ray Depth = 5</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/hundred.png" />
+						<figcaption><i>Max Ray Depth = 100</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		</p>
+		<h3>
+			Point out the new multibounce effects that appear in each image.
+		</h3>
+		<p>
+			0 bounce: Only the light source is visible.
+		</p>
+		<p>
+			1 bounce: The walls are illuminated, but the majority of the spheres are dark. The only illumination on the
+			spheres are the parts which directly reflect the area light.
+		</p>
+		<p>
+			2 bounces: Reflections appear on both balls. The ceiling is illuminated.
+		</p>
+		<p>
+			3 bounces: The effect of refraction is evident on the glass sphere. It is thus much brighter. Within the
+			mirror sphere, the reflection of the ceiling is lit.
+		</p>
+		<p>
+			4 bounces: There's a new small light on the right wall. The refracting glass sphere appears in the mirror
+			sphere.
+		</p>
+		<p>
+			5 bounces: The image is marginally brighter.
+		</p>
+		<p>
+			100 bounces: Essentially no noticible changes.
+		</p>
+		<h3>
+			Explain how these bounce numbers relate to the particular effects that appear. Make sure to include all
+			screenshots.
+		</h3>
+		<p>
+			0 bounce: This is the base case. Nothing in the scene can be illuminated (aside from light sources
+			themselves) without bounces.
+		</p>
+		<p>
+			1 bounce: We see the effects of direct lighting. The spheres themselves do not emit any color and require
+			reflection/refraction. Both of these effects require more than one bounce.
+		</p>
+		<p>
+			2 bounces: The reflection requires two bounces because this allows light to strike the sphere then the box.
+			The effects of reflection are much more evident in the mirror ball because in the glass ball, only a portion
+			of rays get reflected. The ceiling illumination requires light to bounce off the floor and back to the
+			ceiling.
+		</p>
+		<p>
+			3 bounces: The refraction occurs in three bounces because this is enough bounces for light to enter the
+			glass sphere, exit the sphere, and hit the surrounding box. Within the mirror ball, the illuminated ceiling
+			appears on this bounce because it will always be one bounce behind.
+		</p>
+		<p>
+			4 bounces: Again, the mirror sphere will always be one bounce behind when showing the effect of refraction
+			on the glass ball. The light on the right wall took a four bounce path to appear because it needed to bounce
+			off the mirror ball, into the glass ball, out of the glass ball, and onto the wall.
+		</p>
+		<p>
+			5 bounces: As was the case with all previous bounces, light has been continuously bouncing off surfaces and
+			accumulating over time. This is the effect of indirect light.
+		</p>
+		<p>
+			100 bounces: The vast majority of reflections and refractions have algorithmically halted already due to
+			Russian Roulette. This is called convergence.
+		</p>
+
+		<h2>Part 4. Depth of Field</h2>
+		<h3>
+			In a few sentences, explain the differences between a pinhole camera model and a thin-lens camera model.
+		</h3>
+		<p>
+			Both the pinhole camera model and the thin-lens camera model are mathematical models used to represent the
+			way a camera captures images.
+		</p>
+		<p>
+			In the pinhole camera model, light passes through the center of the lens and forms an inverted image on the
+			screen directly behind it. It assumes the hole is very small such that all rays from a source will pass
+			through a singular point (hence the name pinhole). With this geometric relationship, the depth of focus in a
+			pinhole camera is theoretically infinite, so our entire render will be in focus simultaneously no matter the
+			distances of the objects from the camera.
+		</p>
+		<p>
+			The thin-lens model, however, takes into account the aperture of the lens. Aperture is the size of the lens
+			opening; thus, it determines lens radius. In this model, light can pass through any point along the
+			thin-lens and will undergo refraction so all rays converge at the same point. With this geometric
+			relationship, objects at different distances from the camera will be in focus at different distances from
+			the lens.
+		</p>
+		<p>
+			We implemented the thin-lens camera model to obtain this depth-of-focus effect in our renders.
+		</p>
+		<h3>
+			Show a "focus stack" where you focus at 4 visibly different depths through a scene. Make sure to include all
+			screenshots.
+		</h3>
+		<p>
+			pixel sample rate = 512, light sample rate = 4, max ray depth depth = 12, aperture = 0.23
+		</p>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/2341.png" />
+						<figcaption><i>Focal Length = 4.1 (blurry)</i></figcaption>
+					</td>
+					<td>
+						<img src="images/2345.png" />
+						<figcaption><i>Focal Length = 4.5 (near is focused)</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/2349.png" />
+						<figcaption><i>Focal Length = 4.9 (far is focused)</i></figcaption>
+					</td>
+					<td>
+						<img src="images/2353.png" />
+						<figcaption><i>Focal Length = 5.3 (blurry again)</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<h3>
+			Show a sequence of 4 pictures with visibly different aperture sizes, all focused at the same point in a
+			scene. Make sure to include all screenshots.
+		</h3>
+		<p>
+			pixel sample rate = 512, light sample rate = 4, max ray depth depth = 12, focal depth = 4.5
+		</p>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/0145.png" />
+						<figcaption><i>Aperture = 0.01</i></figcaption>
+					</td>
+					<td>
+						<img src="images/0845.png" />
+						<figcaption><i>Aperture = 0.08</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/2345.png" />
+						<figcaption><i>Aperture = 0.23</i></figcaption>
+					</td>
+					<td>
+						<img src="images/4645.png" />
+						<figcaption><i>Aperture = 0.45</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+
+
+	</div>
+	<p>
+		Smaller apertures give a larger depth of field.
+
+	</p>
+</body>
+
 </html>
