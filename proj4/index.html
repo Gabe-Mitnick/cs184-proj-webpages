@@ -1,7 +1,504 @@
 <html>
-	<head>
-	</head>
-	<body>
-		Project 4 here
-	</body>
+
+<head>
+	<style>
+		/* narrow window or mobile */
+		body {
+			margin: 20px;
+			font-weight: 300;
+			font-family: 'Open Sans', sans-serif;
+			color: #121212;
+		}
+
+		/* wide window */
+		@media only screen and (min-width: 1000px) {
+			body {
+				width: calc(min(1000px, 80vw));
+				margin: 40px auto;
+			}
+		}
+
+		h1,
+		h2,
+		figcaption {
+			text-align: center;
+		}
+
+		.two-column-table {
+			width: 100%;
+		}
+
+		.two-column-table td {
+			padding: 3vw;
+		}
+
+		h2 {
+			margin-top: 50px;
+		}
+
+		.normal-image {
+			display: block;
+			width: calc(min(80%, 600px));
+			margin: 0 auto;
+		}
+
+		.small-image {
+			display: block;
+			width: calc(min(48%, 360px));
+			margin: 0 auto;
+		}
+
+		.right-image {
+			width: calc(min(40vw, 400px));
+		}
+
+		.big-image,
+		.two-column-table img {
+			width: 100%;
+		}
+	</style>
+	<title>CS 184 Cloth Sim</title>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+
+	<script>
+		MathJax = {
+			tex: {
+				inlineMath: [['$', '$'], ['\\(', '\\)']]
+			}
+		};
+	</script>
+	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+	</script>
+</head>
+
+<body>
+	<h1>CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+	<h1>Project 4: Cloth Sim</h1>
+	<h2>Gabriel Mitnick and William Fei</h2>
+
+	<h2>Website URL: <a
+			href="https://gabe-mitnick.github.io/cs184-proj-webpages/proj4/index.html">https://gabe-mitnick.github.io/cs184-proj-webpages/proj4/index.html</a>
+	</h2>
+
+	<br><br>
+	<p>
+	<div>
+		<img src="images/task5mirror.png" class="normal-image" />
+	</div>
+	</p>
+
+	<div>
+
+		<h2>Overview</h2>
+		<p>
+			In this project, we implemented a real-time cloth simulation using a mass and spring based system. This
+			required us to build data structures, apply real-world physics formulas, and implement shaders. We
+			particularly enjoyed the GLSL shader portion. There were also a few errors along the way (indexing errors,
+			typos, etc.) which we solved through careful debugging and consulting EDstem. Overall, this was a
+			challenging but enjoyable task, and served as a great introduction to computer animation.
+
+		</p>
+
+		<h2>Part 1: Masses and springs</h2>
+		<h3>Take some screenshots of scene/pinned2.json from a viewing angle where you can clearly see the cloth
+			wireframe to show the structure of your point masses and springs.
+		</h3>
+		<div>
+			<img src="images/task1closeup.png" class="normal-image" />
+		</div>
+		<h3>Show us what the wireframe looks like (1) without any shearing constraints, (2) with only shearing
+			constraints, and (3) with all constraints.
+		</h3>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task1noshear.png" />
+						<figcaption><i>Without any shearing constraints</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task1onlyshear.png" />
+						<figcaption><i>With only shearing constraints</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task1allconstraints.png" />
+						<figcaption><i>With all constraints</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+
+
+		<h2>Part 2: Simulation via numerical integration</h2>
+		<h3>
+			For each, observe any noticeable differences in the cloth compared to the default parameters and show us
+			some screenshots of those interesting differences and describe when they occur:
+			<br>Describe the effects of changing the spring constant ks; how does the cloth behave from start to rest
+			with a very low ks? A high ks?
+			<br>What about for density?
+			<br>What about for damping?
+		</h3>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task2ks500.png" />
+						<figcaption><i>ks=500</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task2ks5000.png" />
+						<figcaption><i>ks=5000</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task2ks50000.png" />
+						<figcaption><i>ks=50000</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task2ks200000.png" />
+						<figcaption><i>ks=200000</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p>Density=15, damping=500</p>
+		<p>ks represents spring stiffness. Stiffness affects the behavior of cloth by determining the amount of
+			resistance that the cloth experiences when stretched. Notice how while keeping other parameters constant, as
+			ks increases, the cloth gets pulled tighter. Conversely, lower ks values lead to stretchier cloth that
+			droops more.
+		</p>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task2d1.png" />
+						<figcaption><i>d=1</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task2d5.png" />
+						<figcaption><i>d=5</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task2d10.png" />
+						<figcaption><i>d=10</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task2d100.png" />
+						<figcaption><i>d=100</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p>ks=5000, damping=1</p>
+		<p>The density of an object refers to its concentration of mass. Higher density objects are heavier, which means
+			they will have a stronger gravitational pull. We observe that while keeping other parameters constant, as
+			density increases, the cloth sinks more due to its higher density and downwards pull.</p>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task2dampinglarge.png" />
+						<figcaption><i>damping=0.540230</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task2dampingsmall.png" />
+						<figcaption><i>damping=0.034483</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p>ks=5000, Density=15</p>
+		<p>The damping parameter affects spring oscillation. The difference is obvious when playing through the
+			animation of the cloth falling. With low damping, the cloth rapidly oscillates back and forth during
+			descent. On the other hand, with high damping, we see the fabric fall smoothly. This is because higher
+			damping means a quicker loss of energy before stabilizing into equilibrium.</p>
+		<p>The above screenshots were taken in the middle of the cloth's descent. Notice the wildly flailing cloth on
+			the right.</p>
+		<h3>Show us a screenshot of your shaded cloth from scene/pinned4.json in its final resting state! If you choose
+			to use different parameters than the default ones, please list them.
+		</h3>
+
+		<div>
+			<img src="images/task2restingstate.png" class="normal-image" />
+			<figcaption><i>ks=5000, density=15, damping=0.2%</i></figcaption>
+
+		</div>
+
+
+		<h2>Part 3: Handling collisions with other objects</h2>
+		<h3>Show us screenshots of your shaded cloth from scene/sphere.json in its final resting state on the sphere
+			using the default ks = 5000 as well as with ks = 500 and ks = 50000. Describe the differences in the
+			results.
+		</h3>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task3ks500.png" />
+						<figcaption><i>ks=500</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task3ks5000.png" />
+						<figcaption><i>ks=5000</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task3ks50000.png" />
+						<figcaption><i>ks=50000</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p>As described above, ks denotes the stiffness coefficient of the spring, determining how much resistance the
+			cloth experiences when stretched. By adjusting ks, we can control the appearance of the cloth. Setting ks to
+			the low value of k=500 yields a flexible cloth that drapes smoothly around the sphere. Lower ks values allow
+			more drooping. Conversely, when ks is set to a high value such as k=50000, the cloth will be stiffer and
+			retain more of its original shape. The default value, ks=5000, acts as the middle ground, providing a
+			moderate level of droopiness between the extremes of high and low stiffness coefficients.</p>
+		<h3>Show us a screenshot of your shaded cloth lying peacefully at rest on the plane. If you haven't by now, feel
+			free to express your colorful creativity with the cloth! (You will need to complete the shaders portion
+			first to show custom colors.)
+		</h3>
+		<div>
+			<img src="images/task3resting.png" class="normal-image" />
+		</div>
+
+
+		<h2>Part 4: Handling self-collisions</h2>
+		<h3>Show us at least 3 screenshots that document how your cloth falls and folds on itself, starting with an
+			early, initial self-collision and ending with the cloth at a more restful state (even if it is still
+			slightly bouncy on the ground).
+		</h3>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task4_1early.png" />
+						<figcaption><i>Early</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task4_2middle.png" />
+						<figcaption><i>Middle</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task4_3end.png" />
+						<figcaption><i>End</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<h3>Vary the density as well as ks and describe with words and screenshots how they affect the behavior of the
+			cloth as it falls on itself.
+		</h3>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task4d1.png" />
+						<figcaption><i>density=1</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task4d15.png" />
+						<figcaption><i>density=15</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task4d100.png" />
+						<figcaption><i>density=100</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p>An object's density, defined as its mass per unit area, influences how the cloth falls on itself. Higher
+			density objects are heavier, with a stronger gravitational pull that causes the cloth to compress more
+			harshly as it falls on itself. Lower density objects are lighter and more flowy, resulting in gentler folds
+			as the cloth falls on itself.</p>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task4ks500.png" />
+						<figcaption><i>ks=500</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task4ks5000.png" />
+						<figcaption><i>ks=5000</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task4ks50000.png" />
+						<figcaption><i>ks=50000</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p>As described earlier, ks denotes the stiffness coefficient of the spring. A higher ks results in stiffer
+			cloth that resists bending, leading to smoother appearance with fewer folds when the cloth falls on itself.
+			On the other hand, a cloth with a lower ks value will lose its shape more easily, resulting in more
+			pronounced creases.</p>
+
+
+		<h2>Part 5: Shaders</h2>
+		<h3>Explain in your own words what is a shader program and how vertex and fragment shaders work together to
+			create lighting and material effects.
+		</h3>
+		<p>The Central Processing Unit, or CPU, handles the overall functioning of a computer. It's great at
+			single-threaded performance, meaning it can very quickly handle one task at a time. However, computer
+			graphics applications often require calculations for every pixel on the screen and every bit of geometry.
+			Here, the CPU would struggle, so we use a Graphics Processing Unit (GPU) instead. The GPU can handle large
+			amounts of complex calculations in parallel, using hundreds or thousands of processing cores, and is
+			specialized to do things like graphics rendering or simulations very quickly.
+		</p>
+		<p>GPU code runs special code that we call shaders. Shaders run on data structures containing information about
+			how we want our scene to be viewed (including vertices, screen dimensions, camera, colors, etc.). Shaders
+			work in two stages, vertex shaders then fragment shaders:
+		</p>
+		<p>Vertex shaders: This first stage of the process deals with geometry. The vertex shader takes in vertex
+			coordinates and transforms them to screen coordinates. It also applies algorithmic transforms to modify
+			vertex position, and can also compute lighting and material effects.
+		</p>
+		<p>
+			Fragment shader: The input to the fragment shader is the output from the vertex shader. Its job is to
+			determine what colors to display on-screen. For each fragment, the fragment shader computes the appropriate
+			final color. This will depend on attributes of the fragment plus blend settings.
+		</p>
+		<p>Vertex shaders and fragment shaders work together to turn a piece of geometry data into pixels shown
+			on-screen.
+		</p>
+		<h3>
+			Explain the Blinn-Phong shading model in your own words. Show a screenshot of your Blinn-Phong shader
+			outputting only the ambient component, a screen shot only outputting the diffuse component, a screen shot
+			only outputting the specular component, and one using the entire Blinn-Phong model.
+		</h3>
+		<p>Realistic lighting effects make scenes look more immersive, which enhances the overall visual experience for
+			viewers. We use a technique called the Blinn-Phong shading model to simulate how light interacts with
+			surfaces. It can be calculated very quickly, making it popular for real-time graphics applications that
+			require fast performance.</p>
+		<p>In the Blinn-Phong model, the way a surface reflects light is calculated using a formula that takes into
+			account the angle of the light, the angle of the viewer, and the angle of the halfway vector between the
+			two. This halfway vector is a vector that points halfway between the light source and the viewer, and it's
+			used to calculate the specular reflection term of the surface.
+		</p>
+		<h3>Show a screenshot of your texture mapping shader using your own custom texture by modifying the textures in
+			/textures/.
+		</h3>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task5customend.png" />
+					</td>
+					<td>
+						<img src="images/task5customstart.png" />
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p>Custom Texture of Northern lights</p>
+		<h3>Show a screenshot of bump mapping on the cloth and on the sphere. Show a screenshot of displacement mapping
+			on the sphere. Use the same texture for both renders. You can either provide your own texture or use one of
+			the ones in the textures directory, BUT choose one that's not the default texture_2.png. Compare the two
+			approaches and resulting renders in your own words.
+		</h3>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task5bumpcloth128.png" />
+						<figcaption><i>Bump mapping on cloth</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task5bumpsphere128.png" />
+						<figcaption><i>Bump mapping on sphere</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task5displacement128sphere.png" />
+						<figcaption><i>Displacement mapping on sphere</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p>Bump mapping and displacement mapping are both techniques used to add depth to computer graphics. Bump
+			mapping simulates small surface irregularities by altering the direction of the surface normal of an object.
+			It gives the illusion of bumps, but the object's surface actually remains smooth. In contrast, displacement
+			mapping actually modifies object geometry by displacing vertices according to texture grooves. It does so in
+			addition to modifying the normals.</p>
+
+		<h3>
+			Compare how your the two shaders react to the sphere by changing the sphere mesh's coarseness by using -o 16
+			-a 16 and then -o 128 -a 128.
+		</h3>
+		<div>
+			<table class="two-column-table">
+				<tr>
+					<td>
+						<img src="images/task5bumpcloth16.png" />
+						<figcaption><i>Bump; 16</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task5bumpcloth128.png" />
+						<figcaption><i>Bump; 128</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task5bumpsphere16.png" />
+						<figcaption><i>Bump; 16</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task5bumpsphere128.png" />
+						<figcaption><i>Bump; 128</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task5displacement16placement.png" />
+						<figcaption><i>Displacement; 16</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task5displacement128placement.png" />
+						<figcaption><i>Displacement; 128</i></figcaption>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<img src="images/task5displacement16sphere.png" />
+						<figcaption><i>Displacement; 16</i></figcaption>
+					</td>
+					<td>
+						<img src="images/task5displacement16sphere.png" />
+						<figcaption><i>Displacement; 128</i></figcaption>
+					</td>
+				</tr>
+			</table>
+		</div>
+
+		<p>We observe that changing coarseness between 16 and 128 doesn't seem to have a very noticeable effect on bump
+			mapping but has a large effect on displacement mapping. This is because displacement mapping actually
+			modifies object geometry while bump mapping does not. Thus, running displacement mapping at the low
+			coarseness level creates sharp, blocky edges that we see here. I would conclude that it is better to run
+			bump mapping when restricted to low coarseness levels, or when a simple, quick technique is needed. But
+			displacement mapping is preferred at high coarseness or when more accurate, realistic results are needed.
+		</p>
+
+		<h3>Show a screenshot of your mirror shader on the cloth and on the sphere.
+		</h3>
+		<div>
+			<img src="images/task5mirror.png" class="normal-image" />
+		</div>
+</body>
+
 </html>
